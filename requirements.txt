@@ -1,1 +1,6 @@
 streamlit
+openai
+pypdf
+PyMuPDF
+cohere
+bs4
