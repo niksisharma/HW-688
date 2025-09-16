@@ -45,14 +45,14 @@ url1_content = get_url_content(url1)
 url2_content = get_url_content(url2)
 
 # Initialize clients
-openai_api_key = st.secrets["DB_TOKEN"]
+openai_api_key = st.secrets["OPENAI_API_KEY"]
 
 if 'openai_client' not in st.session_state:
     st.session_state.openai_client = OpenAI(api_key=openai_api_key)
 
 if 'anthropic_client' not in st.session_state and llm_vendor == "Anthropic":
     try:
-        st.session_state.anthropic_client = anthropic.Anthropic(api_key=st.secrets["ANTHROPIC_API_KEY"])
+        st.session_state.anthropic_client = anthropic.Anthropic(api_key=st.secrets["CLAUDE_API_KEY"])
     except:
         st.session_state.anthropic_client = None
 
@@ -123,7 +123,7 @@ if prompt := st.chat_input("What is up?"):
             )
             response = st.write_stream(stream)
         elif llm_vendor == "Anthropic" and st.session_state.anthropic_client:
-            # Simplified anthropic streaming (using openai as fallback for now)
+            # Simplified streaming (using openai for now)
             client = st.session_state.openai_client
             stream = client.chat.completions.create(
                 model="gpt-4o-mini",
