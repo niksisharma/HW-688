@@ -3,6 +3,7 @@ from openai import OpenAI
 import requests
 from bs4 import BeautifulSoup
 import anthropic
+import cohere
 
 # Show title and description.
 st.title("# Nikita's ChatBot HW 3")
@@ -12,7 +13,7 @@ url1 = st.sidebar.text_input("URL 1:")
 url2 = st.sidebar.text_input("URL 2:")
 
 # Sidebar option for LLM selection
-llm_vendor = st.sidebar.selectbox("Which Vendor?", ("OpenAI", "Anthropic", "Google"))
+llm_vendor = st.sidebar.selectbox("Which Vendor?", ("OpenAI", "Anthropic", "Cohere"))
 
 if llm_vendor == "OpenAI":
     openAI_model = st.sidebar.selectbox("Which Model?", ("gpt-4o", "gpt-4o-mini"))
@@ -20,9 +21,9 @@ if llm_vendor == "OpenAI":
 elif llm_vendor == "Anthropic":
     anthropic_model = st.sidebar.selectbox("Which Model?", ("claude-3-5-sonnet-20241022", "claude-3-haiku-20240307"))
     model = anthropic_model
-else:  # Google
-    google_model = st.sidebar.selectbox("Which Model?", ("gemini-1.5-pro", "gemini-1.5-flash"))
-    model = google_model
+else:  # Cohere
+    cohere_model = st.sidebar.selectbox("Which Model?", ("command-r-plus", "command-r"))
+    model = cohere_model
 
 # Sidebar option for memory type
 memory_type = st.sidebar.selectbox("Memory Type:", ("buffer_6", "summary", "token_2000"))
@@ -50,11 +51,17 @@ openai_api_key = st.secrets["OPENAI_API_KEY"]
 if 'openai_client' not in st.session_state:
     st.session_state.openai_client = OpenAI(api_key=openai_api_key)
 
-if 'anthropic_client' not in st.session_state and llm_vendor == "Anthropic":
+if 'anthropic_client' not in st.session_state:
     try:
         st.session_state.anthropic_client = anthropic.Anthropic(api_key=st.secrets["CLAUDE_API_KEY"])
     except:
         st.session_state.anthropic_client = None
+
+if 'cohere_client' not in st.session_state:
+    try:
+        st.session_state.cohere_client = cohere.Client(api_key=st.secrets["COHERE_API_KEY"])
+    except:
+        st.session_state.cohere_client = None
 
 if "messages" not in st.session_state:
     st.session_state["messages"] = [{"role": "assistant", "content": "How can I help you?"}]
@@ -122,21 +129,34 @@ if prompt := st.chat_input("What is up?"):
                 stream=True
             )
             response = st.write_stream(stream)
-        elif llm_vendor == "Anthropic" and st.session_state.anthropic_client:
-            # Simplified streaming (using openai for now)
-            client = st.session_state.openai_client
-            stream = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=api_messages,
+        elif llm_vendor == "Anthropic":
+            client = st.session_state.anthropic_client
+            stream = client.messages.create(
+                model=model,
+                max_tokens=1000,
+                messages=[msg for msg in api_messages if msg["role"] != "system"],
+                system=next((msg["content"] for msg in api_messages if msg["role"] == "system"), ""),
                 stream=True
             )
             response = st.write_stream(stream)
-        else:  # Google or fallback
-            client = st.session_state.openai_client
-            stream = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=api_messages,
-                stream=True
+        else:  # Cohere
+            client = st.session_state.cohere_client
+            # Convert messages for Cohere format
+            chat_history = []
+            system_msg = ""
+            for msg in api_messages:
+                if msg["role"] == "system":
+                    system_msg = msg["content"]
+                elif msg["role"] == "user":
+                    chat_history.append({"role": "USER", "message": msg["content"]})
+                elif msg["role"] == "assistant":
+                    chat_history.append({"role": "CHATBOT", "message": msg["content"]})
+            
+            stream = client.chat_stream(
+                model=model,
+                message=prompt,
+                chat_history=chat_history[:-1],  # Exclude current message
+                preamble=system_msg
             )
             response = st.write_stream(stream)
     
