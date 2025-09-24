@@ -73,18 +73,6 @@ def extract_text_from_html(file_path):
         return ""
 
 def chunk_document(text, filename, method="sentence_based"):
-    """
-    Chunk document into smaller pieces for better RAG performance.
-    
-    CHUNKING METHOD: Sentence-based chunking with size limits
-    WHY THIS METHOD: 
-    1. Maintains semantic coherence by keeping sentences intact
-    2. Creates manageable chunk sizes (500-1000 chars) that fit well in context windows
-    3. Allows for some overlap between chunks to maintain context
-    4. Better than simple character splitting as it preserves meaning
-    5. More practical than paragraph-based for HTML content which may have irregular structure
-    """
-    
     if not text.strip():
         return []
     
@@ -149,7 +137,7 @@ def create_hw4_vectordb():
             st.info("Vector database already exists. Using existing database.")
             return existing_collection
     except:
-        pass  # Collection doesn't exist yet
+        pass  
     
     if vector_db_exists:
         return existing_collection
@@ -162,8 +150,8 @@ def create_hw4_vectordb():
         
         st.write("📁 Loading HTML files for iSchool organizations...")
         
-        html_directory = "./html_files"  # Adjust path as needed
-        
+        html_directory = "./html_files"  
+
         html_files = []
         
         if os.path.exists(html_directory):
@@ -188,7 +176,7 @@ def create_hw4_vectordb():
                 text_content = extract_text_from_html(html_file_path)
                 
                 if text_content.strip():
-                    # Chunk the document (creates 2 chunks as required)
+                    # Chunk the document 
                     chunks = chunk_document(text_content, html_filename)
                     
                     # Add each chunk to the collection
@@ -262,10 +250,9 @@ def search_vectordb(collection, query, top_k=3):
         return []
 
 def generate_rag_response_with_memory(user_query, relevant_docs, selected_model):
-    """Generate response using RAG with conversation memory"""
+    """Generate response using RAG"""
     openai_client = st.session_state.openai_client
     
-    # Prepare context from retrieved documents
     context_parts = []
     source_info = []
     
@@ -273,7 +260,7 @@ def generate_rag_response_with_memory(user_query, relevant_docs, selected_model)
         context_parts.append("Here is relevant information about iSchool student organizations:")
         for i, doc in enumerate(relevant_docs):
             context_parts.append(f"\n--- Source {i+1}: {doc['filename']} (chunk {doc['chunk_number']}) ---")
-            context_parts.append(doc['content'][:1200])  # Limit content length
+            context_parts.append(doc['content'][:1200]) 
             source_info.append(f"• {doc['filename']} - chunk {doc['chunk_number']} (similarity: {doc['similarity']:.3f})")
     
     context = "\n".join(context_parts)
@@ -334,7 +321,6 @@ Please provide a helpful response focused on iSchool student organizations."""
         return f"Sorry, I encountered an error while generating a response: {e}"
 
 def main():
-    # Initialize vector database
     if 'HW4_vectorDB' not in st.session_state:
         st.write("Setting up vector database for iSchool organizations...")
         
@@ -370,12 +356,6 @@ def main():
                     st.markdown(response)
             
             st.session_state.messages.append({"role": "assistant", "content": response})
-
-        # Show conversation memory info in sidebar
-        if st.session_state.conversation_memory:
-            st.sidebar.markdown("---")
-            st.sidebar.markdown("**Conversation Memory:**")
-            st.sidebar.markdown(f"Storing {len(st.session_state.conversation_memory)}/5 recent Q&A pairs")
 
 if __name__ == "__main__":
     main()
